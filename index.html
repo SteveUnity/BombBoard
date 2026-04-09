@@ -31,7 +31,7 @@
             min-height: 100vh;
             display: grid;
             place-items: center;
-            padding: 24px;
+            padding: 8px;
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text-main);
             background:
@@ -46,7 +46,7 @@
             border: 1px solid rgba(129, 154, 255, 0.3);
             border-radius: 22px;
             box-shadow: var(--shadow);
-            padding: 20px;
+            padding: 12px;
             position: relative;
             overflow: hidden;
         }
@@ -386,9 +386,10 @@
             gap: 8px;
             box-shadow: inset 0 0 12px rgba(92, 127, 255, 0.12);
         }
+        
 
         .hint-tag {
-            font-size: 0.68rem;
+            font-size: 0.58rem;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             border-radius: 999px;
@@ -396,7 +397,14 @@
             border: 1px solid;
             white-space: nowrap;
         }
-
+        @media (max-width: 760px) {
+            .hint-card {
+                flex-direction: column;
+                width: 80px;
+                gap: 0px;
+                padding: 0;
+            }
+        }
         .risk-low {
             color: #8ef9b0;
             border-color: rgba(116, 255, 165, 0.6);
@@ -796,10 +804,10 @@
 
         function getRiskTag(zeroCount, sumValue) {
             if (zeroCount <= 1 && sumValue >= 8) {
-                return { label: "Low Risk", className: "risk-low" };
+                return { label: "Safe", className: "risk-low" };
             }
             if (zeroCount >= 3 || sumValue <= 4) {
-                return { label: "High Risk", className: "risk-high" };
+                return { label: "Risky", className: "risk-high" };
             }
             return { label: "Medium", className: "risk-med" };
         }
@@ -1067,15 +1075,17 @@
             card.style.gridColumn = "6";
             card.style.gridRow = String(rowIdx + 1);
 
-            const info = document.createElement("span");
-            info.textContent = `sum ${sumValue} • 💣 ${zeroCount}`;
+            const infoSum = document.createElement("span");
+            infoSum.textContent = `sum ${sumValue}`;
+            const infoZero = document.createElement("span");
+            infoZero.textContent = `💣 ${zeroCount}`;
 
             const risk = getRiskTag(zeroCount, sumValue);
             const tag = document.createElement("span");
             tag.className = `hint-tag ${risk.className}`;
             tag.textContent = risk.label;
 
-            card.append(info, tag);
+            card.append(infoSum, infoZero, tag);
             return card;
         }
 
