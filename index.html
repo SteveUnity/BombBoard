@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Number Game</title>
+    <style>
+        :root {
+            --bg-a: #0b1025;
+            --bg-b: #1a1240;
+            --panel: rgba(18, 26, 60, 0.8);
+            --panel-border: rgba(136, 165, 255, 0.35);
+            --text-main: #f4f7ff;
+            --text-muted: #b6c1ef;
+            --accent: #61dafb;
+            --good: #31d66f;
+            --neutral: #d2d8f0;
+            --danger: #ff4d6d;
+            --cell-size: 62px;
+            --gap: 10px;
+            --radius: 14px;
+            --shadow: 0 10px 40px rgba(11, 16, 37, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-main);
+            background:
+                radial-gradient(circle at 15% 18%, #263870 0%, transparent 36%),
+                radial-gradient(circle at 85% 80%, #4f2a74 0%, transparent 33%),
+                linear-gradient(145deg, var(--bg-a), var(--bg-b));
+        }
+
+        .game-shell {
+            width: min(960px, 100%);
+            background: linear-gradient(160deg, rgba(22, 31, 71, 0.94), rgba(13, 18, 43, 0.93));
+            border: 1px solid rgba(129, 154, 255, 0.3);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(97, 218, 251, 0.09), transparent 34%, rgba(255, 77, 109, 0.08));
+            pointer-events: none;
+        }
+
+        .top-bar {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 9px 12px;
+            min-width: 130px;
+            box-shadow: inset 0 0 16px rgba(111, 129, 248, 0.12);
+        }
+
+        .card-label {
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .card-value {
+            margin-top: 4px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        .card.score.pulse .card-value {
+            animation: pulse 360ms ease;
+            transform-origin: center center;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        button {
+            border: none;
+            color: #f6fbff;
+            font-weight: 700;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #3558f7, #5b7cff);
+            box-shadow: 0 8px 20px rgba(63, 103, 255, 0.42);
+        }
+
+        .btn-new:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #6637bc, #8042d6);
+            box-shadow: 0 8px 20px rgba(123, 66, 216, 0.34);
+        }
+
+        .board-wrap {
+            position: relative;
+            z-index: 1;
+            overflow-x: auto;
+        }
+
+        .play-area {
+            display: grid;
+            grid-template-columns: 1fr 170px;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, var(--cell-size)) 200px;
+            grid-template-rows: repeat(5, var(--cell-size)) 80px;
+            gap: var(--gap);
+            align-items: stretch;
+            width: fit-content;
+            min-width: 100%;
+            padding: 10px 0 0 0;
+        }
+
+        .marker-panel {
+            border: 1px solid rgba(125, 155, 255, 0.32);
+            border-radius: 12px;
+            background: rgba(16, 24, 58, 0.82);
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+            box-shadow: inset 0 0 12px rgba(92, 127, 255, 0.12);
+        }
+
+        .marker-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .marker-tools {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .marker-tool {
+            border: 1px solid rgba(140, 171, 255, 0.38);
+            border-radius: 10px;
+            background: linear-gradient(155deg, rgba(44, 62, 132, 0.94), rgba(24, 34, 83, 0.95));
+            color: #eef4ff;
+            min-height: 38px;
+            font-weight: 700;
+            box-shadow: inset 0 0 12px rgba(89, 120, 255, 0.2);
+            padding: 6px 4px;
+            font-size: 0.74rem;
+            line-height: 1.1;
+            display: grid;
+            place-items: center;
+            white-space: nowrap;
+        }
+
+        .marker-tool.active {
+            border-color: rgba(255, 227, 140, 0.85);
+            box-shadow:
+                0 0 0 1px rgba(255, 227, 140, 0.45),
+                inset 0 0 12px rgba(255, 209, 122, 0.24);
+            color: #fff4d4;
+        }
+
+        .cell {
+            appearance: none;
+            border: none;
+            border-radius: var(--radius);
+            background: transparent;
+            color: #eef4ff;
+            font-weight: 800;
+            font-size: 1.2rem;
+            transition: transform 120ms ease, filter 140ms ease;
+            cursor: pointer;
+            user-select: none;
+            perspective: 800px;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: var(--cell-size);
+            display: block;
+        }
+
+        .cell:hover:not([disabled]) {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .cell.revealed {
+            cursor: default;
+            transform: none;
+        }
+
+        .cell-inner {
+            display: block;
+            position: absolute;
+            inset: 0;
+            transform-style: preserve-3d;
+            transition: transform 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+
+        .cell.revealed .cell-inner {
+            transform: rotateY(180deg);
+        }
+
+        .cell-face {
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            display: grid;
+            place-items: center;
+            font: inherit;
+            box-shadow:
+                0 8px 16px rgba(8, 12, 35, 0.48),
+                inset 0 0 16px rgba(89, 120, 255, 0.22);
+            border: 1px solid rgba(140, 171, 255, 0.38);
+        }
+
+        .cell-front {
+            background:
+                radial-gradient(circle at 20% 25%, rgba(126, 166, 255, 0.35), transparent 46%),
+                linear-gradient(155deg, rgba(44, 62, 132, 0.94), rgba(24, 34, 83, 0.95));
+            /* position: relative; */
+        }
+
+        .cell-front-content {
+            font: inherit;
+            color: #eef4ff;
+        }
+
+        .cell-markers {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+            max-width: calc(100% - 12px);
+            justify-content: flex-end;
+            pointer-events: none;
+        }
+
+        .cell-marker-chip {
+            min-width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            padding: 0 4px;
+            font-size: 0.58rem;
+            font-weight: 700;
+            line-height: 1;
+            border: 1px solid rgba(197, 214, 255, 0.48);
+            color: #d9e6ff;
+            background: rgba(16, 29, 66, 0.88);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+        }
+
+        .cell-marker-chip.bomb {
+            color: #ffd5df;
+            border-color: rgba(255, 153, 176, 0.62);
+            background: rgba(112, 22, 44, 0.88);
+        }
+
+        .cell-back {
+            transform: rotateY(180deg);
+            background:
+                radial-gradient(circle at 20% 25%, rgba(126, 166, 255, 0.35), transparent 46%),
+                linear-gradient(155deg, rgba(44, 62, 132, 0.94), rgba(24, 34, 83, 0.95));
+        }
+
+        .cell.marked {
+            border-color: rgba(255, 227, 140, 0.8);
+        }
+
+        .cell.marked .cell-front {
+            box-shadow:
+                0 8px 16px rgba(8, 12, 35, 0.48),
+                inset 0 0 0 2px rgba(255, 204, 102, 0.45),
+                inset 0 0 16px rgba(255, 211, 122, 0.2);
+            border-color: rgba(255, 227, 140, 0.8);
+        }
+
+        .cell.mark-bomb {
+            text-shadow: none;
+        }
+
+        .cell.v1 .cell-back {
+            background: linear-gradient(145deg, rgba(148, 157, 190, 0.88), rgba(124, 132, 162, 0.95));
+            color: #10162b;
+        }
+
+        .cell.v2 .cell-back,
+        .cell.v3 .cell-back {
+            background: linear-gradient(145deg, rgba(77, 224, 131, 0.88), rgba(46, 175, 91, 0.95));
+            color: #052210;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .cell.v0 .cell-back {
+            background: linear-gradient(145deg, rgba(255, 106, 133, 0.95), rgba(216, 43, 82, 0.98));
+            color: #fff6fa;
+            font-size: 1.5rem;
+            box-shadow: 0 0 0 1px rgba(255, 141, 163, 0.5), 0 0 18px rgba(255, 87, 122, 0.68);
+        }
+
+        /* Post–game over: values the board reveals for you (not your own flips) */
+        .cell.revealed.auto-revealed .cell-back {
+            background: linear-gradient(145deg, rgba(72, 78, 98, 0.92), rgba(48, 52, 68, 0.96)) !important;
+            color: #aeb6cc !important;
+            text-shadow: none !important;
+            font-size: 1.15rem !important;
+            box-shadow:
+                0 4px 10px rgba(0, 0, 0, 0.35),
+                inset 0 0 12px rgba(0, 0, 0, 0.2) !important;
+            filter: grayscale(0.88) brightness(0.92);
+            opacity: 0.88;
+            border: 1px solid rgba(120, 128, 155, 0.45);
+        }
+
+        .hint-card {
+            border: 1px solid rgba(125, 155, 255, 0.32);
+            border-radius: 12px;
+            background: rgba(16, 24, 58, 0.82);
+            color: #d6e2ff;
+            padding: 8px 10px;
+            font-size: 0.84rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            box-shadow: inset 0 0 12px rgba(92, 127, 255, 0.12);
+        }
+
+        .hint-tag {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-radius: 999px;
+            padding: 3px 8px;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .risk-low {
+            color: #8ef9b0;
+            border-color: rgba(116, 255, 165, 0.6);
+            background: rgba(42, 161, 83, 0.2);
+        }
+
+        .risk-med {
+            color: #ffe89c;
+            border-color: rgba(255, 220, 112, 0.62);
+            background: rgba(177, 122, 34, 0.18);
+        }
+
+        .risk-high {
+            color: #ffb2c0;
+            border-color: rgba(255, 120, 145, 0.68);
+            background: rgba(196, 43, 81, 0.22);
+        }
+
+        .bottom-hint {
+            border: 1px solid rgba(125, 155, 255, 0.32);
+            border-radius: 12px;
+            background: rgba(16, 24, 58, 0.82);
+            color: #d6e2ff;
+            padding: 4px 6px;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            box-shadow: inset 0 0 12px rgba(92, 127, 255, 0.12);
+            overflow: hidden;
+        }
+
+        .bottom-hint .hint-tag {
+            font-size: 0.58rem;
+            padding: 2px 5px;
+        }
+
+        .legend {
+            margin-top: 14px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .legend strong {
+            color: #eaf0ff;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(7, 12, 30, 0.77);
+            display: grid;
+            place-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+            z-index: 5;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay-card {
+            text-align: center;
+            padding: 24px 22px;
+            width: min(360px, calc(100% - 28px));
+            border-radius: 16px;
+            border: 1px solid rgba(255, 136, 161, 0.55);
+            background: linear-gradient(150deg, rgba(44, 18, 52, 0.96), rgba(84, 24, 52, 0.96));
+            box-shadow: 0 14px 26px rgba(0, 0, 0, 0.38);
+        }
+
+        .overlay-icon {
+            font-size: 2.2rem;
+            margin-bottom: 6px;
+        }
+
+        .overlay h2 {
+            margin: 0 0 8px;
+        }
+
+        .overlay p {
+            margin: 0 0 16px;
+            color: #f3d8df;
+        }
+
+        .overlay-hint {
+            margin: 14px 0 0 !important;
+            font-size: 0.82rem;
+            color: #d8c4cb !important;
+            line-height: 1.35;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 760px) {
+            :root {
+                --cell-size: 54px;
+                --gap: 8px;
+            }
+
+            .top-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                justify-content: flex-start;
+            }
+
+            .board {
+                grid-template-columns: repeat(5, var(--cell-size)) 180px;
+            }
+
+            .play-area {
+                grid-template-columns: 1fr;
+            }
+
+            .marker-panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="game-shell">
+        <section class="top-bar">
+            <div class="stat-row">
+                <article class="card score" id="scoreCard">
+                    <div class="card-label">Score</div>
+                    <div class="card-value" id="scoreValue">1</div>
+                </article>
+                <article class="card">
+                    <div class="card-label">Total Score</div>
+                    <div class="card-value" id="totalScoreValue">0</div>
+                </article>
+                <article class="card">
+                    <div class="card-label">Level</div>
+                    <div class="card-value" id="levelValue">1</div>
+                </article>
+                <article class="card">
+                    <div class="card-label">Best Score</div>
+                    <div class="card-value" id="bestScoreValue">1</div>
+                </article>
+            </div>
+            <div class="controls">
+                <button type="button" class="btn-new" id="newGameBtn">New Game</button>
+                <button type="button" class="btn-reset" id="resetProgressBtn">Reset Progress</button>
+            </div>
+        </section>
+
+        <section class="play-area">
+            <section class="board-wrap">
+                <h1 class="sr-only">Grid Number Game</h1>
+                <div id="board" class="board" aria-live="polite"></div>
+            </section>
+            <aside class="marker-panel" aria-label="Cell marker tools">
+                <div class="marker-title">Cell Marker</div>
+                <div class="marker-tools" id="markerTools">
+                    <button type="button" class="marker-tool" data-tool="bomb">💣</button>
+                    <button type="button" class="marker-tool" data-tool="1">1</button>
+                    <button type="button" class="marker-tool" data-tool="2">2</button>
+                    <button type="button" class="marker-tool" data-tool="3">3</button>
+                    <button type="button" class="marker-tool" data-tool="erase">Clear</button>
+                    <button type="button" class="marker-tool active" data-tool="reveal">Reveal</button>
+                </div>
+            </aside>
+        </section>
+
+        <p class="legend">
+            Win by revealing every <strong>2</strong> and <strong>3</strong> on the board. Your level score is banked into <strong>Total Score</strong>, then the next level starts fresh at score <strong>1</strong>.
+            After a loss, hidden cells flip in <strong>muted gray</strong> so you can compare them with cells you opened yourself.
+            Select a marker tool on the side to plan; use <strong>Reveal</strong> to open cells. Desktop: <strong>Right-click</strong> or <strong>M</strong> cycles marks.
+        </p>
+
+        <div class="overlay" id="gameOverOverlay" aria-hidden="true">
+            <div class="overlay-card">
+                <div class="overlay-icon">💣</div>
+                <h2>Boom! Game Over</h2>
+                <p id="finalScoreText">Your final score: 0</p>
+                <button type="button" class="btn-new" id="overlayDismissBtn">Dismiss</button>
+                <p class="overlay-hint">Dismiss to inspect the board. Use <strong>New Game</strong> when you are ready to play again.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const SIZE = 5;
+        const boardElement = document.getElementById("board");
+        const scoreValue = document.getElementById("scoreValue");
+        const bestScoreValue = document.getElementById("bestScoreValue");
+        const totalScoreValue = document.getElementById("totalScoreValue");
+        const levelValue = document.getElementById("levelValue");
+        const scoreCard = document.getElementById("scoreCard");
+        const gameOverOverlay = document.getElementById("gameOverOverlay");
+        const finalScoreText = document.getElementById("finalScoreText");
+        const newGameBtn = document.getElementById("newGameBtn");
+        const resetProgressBtn = document.getElementById("resetProgressBtn");
+        const overlayDismissBtn = document.getElementById("overlayDismissBtn");
+        const markerTools = document.getElementById("markerTools");
+
+        const BEST_SCORE_KEY = "grid-number-game-best-score";
+        const TOTAL_SCORE_KEY = "grid-number-game-total-score";
+        const savedBest = Number(localStorage.getItem(BEST_SCORE_KEY));
+        const savedTotal = Number(localStorage.getItem(TOTAL_SCORE_KEY));
+        const state = {
+            level: 1,
+            score: 1,
+            bestScore: Number.isFinite(savedBest) && savedBest >= 1 ? savedBest : 1,
+            totalScore: Number.isFinite(savedTotal) && savedTotal >= 0 ? savedTotal : 0,
+            gameOver: false,
+            grid: [],
+            revealed: new Set(),
+            marks: new Map(),
+            activeTool: "reveal",
+            highValueKeys: new Set()
+        };
+
+        function saveBestScore() {
+            localStorage.setItem(BEST_SCORE_KEY, String(state.bestScore));
+        }
+
+        function saveTotalScore() {
+            localStorage.setItem(TOTAL_SCORE_KEY, String(state.totalScore));
+        }
+
+        const MARK_ORDER = ["💣", "1", "2", "3"];
+
+        function randomInt(maxExclusive) {
+            return Math.floor(Math.random() * maxExclusive);
+        }
+
+        function getLevelProfile(level) {
+            const clamped = Math.max(1, Math.min(15, level));
+            return {
+                zeroWeight: 1 + clamped * 0.45,
+                oneWeight: Math.max(1, 4 - clamped * 0.15),
+                twoWeight: 2 + clamped * 0.08,
+                threeWeight: 1 + clamped * 0.22,
+                minThrees: Math.min(2 + Math.floor(clamped / 2), 8),
+                targetZeros: Math.min(4 + Math.floor(clamped * 0.65), 12)
+            };
+        }
+
+        function weightedPick(profile) {
+            const entries = [
+                { value: 0, weight: profile.zeroWeight },
+                { value: 1, weight: profile.oneWeight },
+                { value: 2, weight: profile.twoWeight },
+                { value: 3, weight: profile.threeWeight }
+            ];
+            const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+            let roll = Math.random() * total;
+            for (const entry of entries) {
+                roll -= entry.weight;
+                if (roll <= 0) return entry.value;
+            }
+            return 1;
+        }
+
+        function createBaseGrid(profile) {
+            const grid = [];
+            let zeroCount = 0;
+            let threeCount = 0;
+            for (let r = 0; r < SIZE; r += 1) {
+                const row = [];
+                for (let c = 0; c < SIZE; c += 1) {
+                    const value = weightedPick(profile);
+                    if (value === 0) zeroCount += 1;
+                    if (value === 3) threeCount += 1;
+                    row.push(value);
+                }
+                grid.push(row);
+            }
+            return { grid, zeroCount, threeCount };
+        }
+
+        function boardMetrics(grid) {
+            const rowSums = Array.from({ length: SIZE }, (_, r) =>
+                grid[r].reduce((sum, value) => sum + value, 0)
+            );
+            const rowZeros = Array.from({ length: SIZE }, (_, r) =>
+                grid[r].filter((value) => value === 0).length
+            );
+
+            const colSums = Array.from({ length: SIZE }, (_, c) => {
+                let sum = 0;
+                for (let r = 0; r < SIZE; r += 1) sum += grid[r][c];
+                return sum;
+            });
+            const colZeros = Array.from({ length: SIZE }, (_, c) => {
+                let zeros = 0;
+                for (let r = 0; r < SIZE; r += 1) {
+                    if (grid[r][c] === 0) zeros += 1;
+                }
+                return zeros;
+            });
+
+            let totalZeros = 0;
+            let totalThrees = 0;
+            let totalValue = 0;
+            for (const row of grid) {
+                for (const value of row) {
+                    totalValue += value;
+                    if (value === 0) totalZeros += 1;
+                    if (value === 3) totalThrees += 1;
+                }
+            }
+
+            return { rowSums, rowZeros, colSums, colZeros, totalZeros, totalThrees, totalValue };
+        }
+
+        function scorePotential(metrics) {
+            const reward = metrics.totalThrees * 1.75 + metrics.totalValue / 10;
+            const risk = metrics.totalZeros * 1.2;
+            const ambiguity = metrics.rowZeros.reduce((a, b) => a + b, 0) / SIZE;
+            return reward - risk + ambiguity * 0.12;
+        }
+
+        function clusterZeros(grid, amount) {
+            if (amount <= 0) return;
+            for (let i = 0; i < amount; i += 1) {
+                const r = randomInt(SIZE);
+                const c = randomInt(SIZE);
+                const rr = Math.max(0, Math.min(SIZE - 1, r + (Math.random() < 0.5 ? -1 : 1)));
+                const cc = Math.max(0, Math.min(SIZE - 1, c + (Math.random() < 0.5 ? -1 : 1)));
+                grid[rr][cc] = 0;
+            }
+        }
+
+        function injectThrees(grid, amount) {
+            let added = 0;
+            let guard = 0;
+            while (added < amount && guard < 120) {
+                guard += 1;
+                const r = randomInt(SIZE);
+                const c = randomInt(SIZE);
+                if (grid[r][c] !== 0 && grid[r][c] !== 3) {
+                    grid[r][c] = 3;
+                    added += 1;
+                }
+            }
+        }
+
+        function generateBoard(level) {
+            const profile = getLevelProfile(level);
+            let candidate = null;
+            let bestGap = Number.POSITIVE_INFINITY;
+            const desired = (level * 0.3) + 1.8;
+
+            for (let attempt = 0; attempt < 90; attempt += 1) {
+                const { grid, zeroCount, threeCount } = createBaseGrid(profile);
+
+                if (zeroCount < profile.targetZeros) {
+                    clusterZeros(grid, profile.targetZeros - zeroCount);
+                }
+                if (threeCount < profile.minThrees) {
+                    injectThrees(grid, profile.minThrees - threeCount);
+                }
+
+                const metrics = boardMetrics(grid);
+                const potential = scorePotential(metrics);
+                const gap = Math.abs(desired - potential);
+
+                if (gap < bestGap) {
+                    bestGap = gap;
+                    candidate = { grid, metrics };
+                }
+
+                if (
+                    metrics.totalZeros >= profile.targetZeros - 1 &&
+                    metrics.totalThrees >= profile.minThrees &&
+                    potential >= desired - 0.5 &&
+                    potential <= desired + 1.5
+                ) {
+                    return { grid, metrics };
+                }
+            }
+
+            return candidate;
+        }
+
+        function getRiskTag(zeroCount, sumValue) {
+            if (zeroCount <= 1 && sumValue >= 8) {
+                return { label: "Low Risk", className: "risk-low" };
+            }
+            if (zeroCount >= 3 || sumValue <= 4) {
+                return { label: "High Risk", className: "risk-high" };
+            }
+            return { label: "Medium", className: "risk-med" };
+        }
+
+        function boardCellKey(r, c) {
+            return `${r}-${c}`;
+        }
+
+        function refreshHighValueKeys() {
+            state.highValueKeys = new Set();
+            for (let r = 0; r < SIZE; r += 1) {
+                for (let c = 0; c < SIZE; c += 1) {
+                    const v = state.grid[r][c];
+                    if (v === 2 || v === 3) {
+                        state.highValueKeys.add(boardCellKey(r, c));
+                    }
+                }
+            }
+        }
+
+        function ensureAtLeastOneHighValue(grid) {
+            let found = false;
+            for (let r = 0; r < SIZE; r += 1) {
+                for (let c = 0; c < SIZE; c += 1) {
+                    if (grid[r][c] === 2 || grid[r][c] === 3) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+            if (!found) {
+                grid[0][0] = 2;
+            }
+        }
+
+        function allHighValuesRevealed() {
+            if (state.highValueKeys.size === 0) return false;
+            for (const key of state.highValueKeys) {
+                if (!state.revealed.has(key)) return false;
+            }
+            return true;
+        }
+
+        function getMarksForCell(key) {
+            return state.marks.get(key) || [];
+        }
+
+        function applyCellMarkVisual(button, marks) {
+            const frontFace = button.querySelector(".cell-front");
+            const markersBox = button.querySelector(".cell-markers");
+            button.classList.remove("marked", "mark-bomb");
+            if (!marks.length) {
+                button.title = "Reveal cell";
+                if (markersBox) markersBox.innerHTML = "";
+                return;
+            }
+            button.classList.add("marked");
+            if (marks.includes("💣")) {
+                button.classList.add("mark-bomb");
+            }
+            if (frontFace && !frontFace.querySelector(".cell-front-content")) {
+                frontFace.innerHTML = '<span class="cell-front-content">?</span><span class="cell-markers"></span>';
+            }
+            if (markersBox) {
+                markersBox.innerHTML = marks.map((mark) => {
+                    const bombClass = mark === "💣" ? " bomb" : "";
+                    return `<span class="cell-marker-chip${bombClass}">${mark}</span>`;
+                }).join("");
+            }
+            button.title = `Marked as ${marks.join(", ")}`;
+        }
+
+        function cycleCellMark(button) {
+            if (state.gameOver) return;
+            const r = Number(button.dataset.r);
+            const c = Number(button.dataset.c);
+            const key = boardCellKey(r, c);
+            if (state.revealed.has(key)) return;
+
+            const marks = getMarksForCell(key);
+            const currentPrimary = marks[0] || "";
+            const cycle = ["", ...MARK_ORDER];
+            const nextIdx = (cycle.indexOf(currentPrimary) + 1) % cycle.length;
+            const nextMark = cycle[nextIdx];
+            if (nextMark) {
+                state.marks.set(key, [nextMark]);
+            } else {
+                state.marks.delete(key);
+            }
+            applyCellMarkVisual(button, getMarksForCell(key));
+        }
+
+        function getMarkFromTool() {
+            if (state.activeTool === "bomb") return "💣";
+            if (state.activeTool === "erase" || state.activeTool === "reveal") return "";
+            return state.activeTool;
+        }
+
+        function toggleCellMarker(button, key, marker) {
+            const marks = getMarksForCell(key);
+            const hasMarker = marks.includes(marker);
+            const nextMarks = hasMarker
+                ? marks.filter((entry) => entry !== marker)
+                : [...marks, marker];
+            nextMarks.sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b));
+            if (nextMarks.length) {
+                state.marks.set(key, nextMarks);
+            } else {
+                state.marks.delete(key);
+            }
+            applyCellMarkVisual(button, getMarksForCell(key));
+        }
+
+        function clearCellMarkers(button, key) {
+            state.marks.delete(key);
+            applyCellMarkVisual(button, []);
+        }
+
+        function updateMarkerToolUI() {
+            const buttons = markerTools.querySelectorAll(".marker-tool");
+            for (const button of buttons) {
+                button.classList.toggle("active", button.dataset.tool === state.activeTool);
+            }
+        }
+
+        function animateScore() {
+            scoreCard.classList.remove("pulse");
+            void scoreCard.offsetWidth;
+            scoreCard.classList.add("pulse");
+        }
+
+        function updateHUD() {
+            scoreValue.textContent = String(state.score);
+            bestScoreValue.textContent = String(state.bestScore);
+            totalScoreValue.textContent = String(state.totalScore);
+            levelValue.textContent = String(state.level);
+        }
+
+        function hideOverlay() {
+            gameOverOverlay.classList.remove("show");
+            gameOverOverlay.setAttribute("aria-hidden", "true");
+        }
+
+        function showOverlay() {
+            finalScoreText.textContent = `Your final score: ${state.score}`;
+            gameOverOverlay.classList.add("show");
+            gameOverOverlay.setAttribute("aria-hidden", "false");
+        }
+
+        function revealCell(button, value, autoReveal = false) {
+            const backFace = button.querySelector(".cell-back");
+            button.disabled = true;
+            button.classList.add("revealed", `v${value}`);
+            if (autoReveal) {
+                button.classList.add("auto-revealed");
+            }
+            if (value === 0) {
+                if (backFace) backFace.textContent = "💣";
+                button.title = autoReveal ? "Bomb (shown after game over)" : "Bomb! Zero score.";
+            } else {
+                if (backFace) backFace.textContent = String(value);
+                button.title = autoReveal ? `Was ${value}` : String(value);
+            }
+        }
+
+        function revealRemainingBoardAfterLoss() {
+            const cells = boardElement.querySelectorAll("button.cell");
+            for (const button of cells) {
+                const r = Number(button.dataset.r);
+                const c = Number(button.dataset.c);
+                const key = boardCellKey(r, c);
+                if (state.revealed.has(key)) continue;
+                const value = state.grid[r][c];
+                state.revealed.add(key);
+                clearCellMarkers(button, key);
+                revealCell(button, value, true);
+            }
+        }
+
+        function onCellClick(event) {
+            if (state.gameOver) return;
+            const button = event.currentTarget;
+            const r = Number(button.dataset.r);
+            const c = Number(button.dataset.c);
+            const key = boardCellKey(r, c);
+            if (state.revealed.has(key)) return;
+
+            if (state.activeTool !== "reveal") {
+                const selectedMark = getMarkFromTool();
+                if (!selectedMark) {
+                    clearCellMarkers(button, key);
+                } else {
+                    toggleCellMarker(button, key, selectedMark);
+                }
+                return;
+            }
+
+            const value = state.grid[r][c];
+            state.revealed.add(key);
+            clearCellMarkers(button, key);
+            revealCell(button, value);
+
+            if (value === 0) {
+                state.score = 0;
+                state.gameOver = true;
+                updateHUD();
+                showOverlay();
+                requestAnimationFrame(() => {
+                    revealRemainingBoardAfterLoss();
+                });
+                return;
+            }
+
+            state.score *= value;
+            if (state.score > state.bestScore) {
+                state.bestScore = state.score;
+                saveBestScore();
+            }
+            updateHUD();
+            animateScore();
+
+            if (allHighValuesRevealed()) {
+                state.totalScore += state.score;
+                saveTotalScore();
+                updateHUD();
+                setTimeout(() => {
+                    state.level += 1;
+                    startNewGame(false);
+                }, 800);
+            }
+        }
+
+        function createCell(r, c) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "cell";
+            button.dataset.r = String(r);
+            button.dataset.c = String(c);
+            button.innerHTML = [
+                '<span class="cell-inner">',
+                '<span class="cell-face cell-front"><span class="cell-front-content">?</span><span class="cell-markers"></span></span>',
+                '<span class="cell-face cell-back"></span>',
+                "</span>"
+            ].join("");
+            button.title = "Reveal cell";
+            button.setAttribute("aria-label", `Reveal row ${r + 1} column ${c + 1}`);
+            button.addEventListener("click", onCellClick);
+            button.addEventListener("contextmenu", (event) => {
+                event.preventDefault();
+                cycleCellMark(button);
+            });
+            button.addEventListener("keydown", (event) => {
+                if (event.key.toLowerCase() === "m") {
+                    event.preventDefault();
+                    cycleCellMark(button);
+                }
+            });
+            return button;
+        }
+
+        function createRowHint(rowIdx, sumValue, zeroCount) {
+            const card = document.createElement("div");
+            card.className = "hint-card";
+            card.style.gridColumn = "6";
+            card.style.gridRow = String(rowIdx + 1);
+
+            const info = document.createElement("span");
+            info.textContent = `sum ${sumValue} • 💣 ${zeroCount}`;
+
+            const risk = getRiskTag(zeroCount, sumValue);
+            const tag = document.createElement("span");
+            tag.className = `hint-tag ${risk.className}`;
+            tag.textContent = risk.label;
+
+            card.append(info, tag);
+            return card;
+        }
+
+        function createBottomHint(colIdx, sumValue, zeroCount, rowNumber) {
+            const box = document.createElement("div");
+            box.className = "bottom-hint";
+            box.style.gridColumn = String(colIdx + 1);
+            box.style.gridRow = String(rowNumber);
+            const infoSum = document.createElement("span");
+            infoSum.textContent = `sum ${sumValue}`;
+            const infoZero = document.createElement("span");
+            infoZero.textContent = `💣 ${zeroCount}`;
+
+            const risk = getRiskTag(zeroCount, sumValue);
+            const tag = document.createElement("span");
+            tag.className = `hint-tag ${risk.className}`;
+            tag.textContent = risk.label;
+
+            box.append(infoSum, infoZero, tag);
+            return box;
+        }
+
+        function renderBoard(metrics) {
+            boardElement.innerHTML = "";
+
+            for (let r = 0; r < SIZE; r += 1) {
+                for (let c = 0; c < SIZE; c += 1) {
+                    const cell = createCell(r, c);
+                    cell.style.gridColumn = String(c + 1);
+                    cell.style.gridRow = String(r + 1);
+                    boardElement.appendChild(cell);
+                }
+                boardElement.appendChild(createRowHint(r, metrics.rowSums[r], metrics.rowZeros[r]));
+            }
+
+            for (let c = 0; c < SIZE; c += 1) {
+                boardElement.appendChild(createBottomHint(c, metrics.colSums[c], metrics.colZeros[c], 6));
+            }
+        }
+
+        function startNewGame(resetLevel) {
+            if (resetLevel) {
+                state.level = 1;
+                state.totalScore = 0;
+                saveTotalScore();
+                state.bestScore = 1;
+                saveBestScore();
+            }
+            state.score = 1;
+            state.gameOver = false;
+            state.revealed.clear();
+            state.marks.clear();
+            hideOverlay();
+
+            const { grid, metrics } = generateBoard(state.level);
+            ensureAtLeastOneHighValue(grid);
+            state.grid = grid;
+            refreshHighValueKeys();
+            renderBoard(metrics);
+            updateHUD();
+        }
+
+        newGameBtn.addEventListener("click", () => startNewGame(false));
+        resetProgressBtn.addEventListener("click", () => {
+            const ok = window.confirm(
+                "Reset all progress? This clears level, total score, and your best single-level score. This cannot be undone."
+            );
+            if (!ok) return;
+            startNewGame(true);
+        });
+        overlayDismissBtn.addEventListener("click", () => hideOverlay());
+        markerTools.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) return;
+            const tool = target.dataset.tool;
+            if (!tool) return;
+            state.activeTool = tool;
+            updateMarkerToolUI();
+        });
+        updateMarkerToolUI();
+
+        startNewGame(false);
+    </script>
+</body>
+</html>
